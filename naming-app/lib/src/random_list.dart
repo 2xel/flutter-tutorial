@@ -1,5 +1,7 @@
 import 'package:english_words/english_words.dart';
+import 'package:english_words/english_words.dart' as prefix0;
 import 'package:flutter/material.dart';
+import 'package:flutter_app/src/bloc/bloc.dart';
 import 'package:flutter_app/src/saved.dart';
 
 class RandomList extends StatefulWidget {
@@ -9,7 +11,6 @@ class RandomList extends StatefulWidget {
 
 class _RandomListState extends State<RandomList> {
   final List<WordPair> _suggestions = <WordPair>[];
-  final Set<WordPair> _saved = Set<WordPair>();
 
   @override
   Widget build(BuildContext context) {
@@ -21,30 +22,36 @@ class _RandomListState extends State<RandomList> {
               icon: Icon(Icons.list),
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => SavedList(saved: _saved)));
+                    builder: (context) => SavedList()));
               },
             )
           ],
         ),
-        body: buildList());
+        body: _buildList());
   }
 
-  Widget buildList() {
-    return ListView.builder(itemBuilder: (context, index) {
-      if (index.isOdd) return Divider();
+  Widget _buildList() {
+    return StreamBuilder<Set<WordPair>>(
+      stream: bloc.savedStream,
+      builder: (context, snapshot) {
+        return ListView.builder(itemBuilder: (context, index) {
+          if (index.isOdd) return Divider();
 
-      var realIndex = index ~/ 2;
+          var realIndex = index ~/ 2;
 
-      if (realIndex >= _suggestions.length) {
-        _suggestions.addAll(generateWordPairs().take(10));
+          if (realIndex >= _suggestions.length) {
+            _suggestions.addAll(generateWordPairs().take(10));
+          }
+
+          return _buildRow(snapshot.data, _suggestions[realIndex]);
+        });
       }
-
-      return buildRow(_suggestions[realIndex]);
-    });
+    );
   }
 
-  Widget buildRow(WordPair wordPair) {
-    final bool alreadSaved = _saved.contains(wordPair);
+  Widget _buildRow(Set<WordPair> saved, WordPair wordPair) {
+    final bool alreadSaved = saved == null ? false : saved.contains(wordPair);
+
     return ListTile(
       title: Text(
         wordPair.asPascalCase,
@@ -53,12 +60,7 @@ class _RandomListState extends State<RandomList> {
       trailing: Icon(alreadSaved ? Icons.favorite : Icons.favorite_border,
           color: Colors.pink),
       onTap: () {
-        setState(() {
-          if (alreadSaved)
-            _saved.remove(wordPair);
-          else
-            _saved.add(wordPair);
-        });
+        bloc.addToOrRemoveFromSavedList(wordPair);
       },
     );
   }
